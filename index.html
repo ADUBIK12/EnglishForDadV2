@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Интерактивный тренажер для Папы</title>
+    <style>
+        :root {
+            --primary: #4a90e2;
+            --success: #2ec4b6;
+            --danger: #e63946;
+            --warning: #f59e0b;
+            --dark: #2f3e46;
+            --bg: #f4f7f6;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--dark);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 { margin-bottom: 5px; color: var(--primary); }
+        .menu, .app-container {
+            width: 100%;
+            max-width: 600px;
+            background: white;
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            margin-top: 20px;
+        }
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            font-size: 18px;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-theme { background-color: #e2eafc; color: var(--dark); }
+        .btn-theme:hover { background-color: #ccdbfd; }
+        .btn-mix { background-color: #ffddd2; color: var(--dark); }
+        .btn-mix:hover { background-color: #e56b6f; color: white; }
+        .btn-main { background-color: var(--primary); color: white; }
+        .btn-hint { background-color: var(--warning); color: white; width: 48%; }
+        .btn-reset { background-color: #6c757d; color: white; width: 48%; }
+        
+        .hidden { display: none !important; }
+        .badge {
+            display: inline-block;
+            padding: 5px 12px;
+            background: #6c757d;
+            color: white;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .score-board {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            font-weight: bold;
+            font-size: 16px;
+            align-items: center;
+        }
+        .score-correct { color: var(--success); }
+        .score-wrong { color: var(--danger); }
+
+        .russian-text {
+            font-size: 22px;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0;
+            color: #1d3557;
+        }
+
+        /* Зоны для перетаскивания */
+        .answer-zone {
+            min-height: 60px;
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            padding: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            background: #fafafa;
+            margin-bottom: 20px;
+            transition: background 0.2s;
+        }
+        .answer-zone.drag-over {
+            background: #e2eafc;
+            border-color: var(--primary);
+        }
+
+        .words-zone {
+            min-height: 60px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 25px;
+            justify-content: center;
+        }
+
+        /* Слово-блок с поддержкой перетаскивания */
+        .word-block {
+            padding: 10px 16px;
+            background: white;
+            border: 2px solid var(--primary);
+            border-radius: 8px;
+            cursor: grab;
+            font-size: 18px;
+            font-weight: 500;
+            user-select: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .word-block:active {
+            cursor: grabbing;
+        }
+        .word-block.dragging {
+            opacity: 0.4;
+            transform: scale(0.95);
+        }
+
+        .result-box {
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+        .result-success { background: #d8f3dc; color: #1b4332; border: 2px solid var(--success); }
+        .result-danger { background: #fde2e4; color: #5c0606; border: 2px solid var(--danger); }
+        
+        .btn-clear-save {
+            background: none;
+            border: 1px solid #ccc;
+            color: #999;
+            padding: 5px 10px;
+            font-size: 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 30px;
+        }
+        .btn-clear-save:hover { background: #fee2e2; color: var(--danger); }
+    </style>
+</head>
+<body>
+
+    <!-- НОВЫЙ БЛОК: Сюда мы спрятали заголовки, чтобы управлять ими из JavaScript -->
+    <div id="header-block">
+        <h1>Английский Тренажер 🇬🇧</h1>
+        <p style="margin: 0; color: #6c757d;">Перетаскивайте блоки мышкой или кликайте по ним</p>
+    </div>
+
+    <!-- ЭКРАН 1: ВЫБОР ТЕМЫ -->
+    <div id="menu-screen" class="menu">
+        <h3>Выберите тему:</h3>
+        <button class="btn btn-theme" onclick="startTheme('travel')"> 1. Путешествия и туризм</button>
+        <button class="btn btn-theme" onclick="startTheme('business')"> 2. Бизнес и работа</button>
+        <button class="btn btn-theme" onclick="startTheme('daily')"> 3. Быт и повседневная жизнь</button>
+
+        <h3>Объединенные темы:</h3>
+        <button class="btn btn-mix" onclick="startTheme('mixed_1')"> 4. Деловая поездка (Бизнес + Туризм)</button>
+        <button class="btn btn-mix" onclick="startTheme('mixed_2')"> 5. Вечер после работы (Бизнес + Быт)</button>
+        
+        <center><button class="btn-clear-save" onclick="clearAllProgress()">🗑 Сбросить всё сохранение прогресса</button></center>
+    </div>
+
+    <!-- ЭКРАН 2: ИГРА -->
+    <div id="app-screen" class="app-container hidden">
+        
+        <div class="score-board">
+            <button class="btn" style="width: auto; margin: 0; padding: 5px 15px; font-size: 14px;" onclick="backToMenu()">⬅ Меню</button>
+            <div>
+                <span class="score-correct">✅ <span id="count-correct">0</span></span> &nbsp;
+                <span class="score-wrong">❌ <span id="count-wrong">0</span></span>
+            </div>
+            <div>
+                <span id="level-badge" class="badge">Уровень 1</span>
+                <span id="progress-text" style="margin-left: 5px;">1/250</span>
+            </div>
+        </div>
+
+        <div class="russian-text" id="russian-text">Перевод предложения</div>
+
+        <div id="result-message" class="result-box hidden"></div>
+
+        <p style="margin: 0 0 5px 0; font-size: 14px; color: #6c757d;">Ваш ответ (перетащите сюда слова или кликните на них):</p>
+        <!-- Зона ответа теперь принимает drag-события -->
+        <div class="answer-zone" id="answer-zone" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)" ondrop="dropToAnswer(event)"></div>
+
+        <div id="utility-btns" style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+            <button class="btn btn-reset" onclick="resetCurrentAnswer()"> Сбросить ответ</button>
+            <button class="btn btn-hint" onclick="giveHint()"> Подсказка</button>
+        </div>
+
+        <p style="margin: 0 0 5px 0; font-size: 14px; color: #6c757d;">Доступные блоки (есть фальш-слова):</p>
+        <div class="words-zone" id="words-zone"></div>
+
+        <button class="btn btn-main" id="action-btn" onclick="checkAnswer()" style="background-color: var(--dark);">Проверить отгадку</button>
+        
+        <div style="display: flex; gap: 10px;">
+            <button class="btn hidden" id="audio-repeat-btn" onclick="repeatAudio()" style="background-color: #6c757d; color: white; width: 30%;">🔊 Повторить</button>
+            <button class="btn hidden" id="next-btn" onclick="nextSentence()" style="background-color: var(--primary); color: white; flex-grow: 1;">Следующее предложение ⏭</button>
+        </div>
+    </div>
+
+    <script src="content.js"></script>
+
+    <script>
+        let db = englishData;
+
+        let currentTheme = '';
+        let currentIndex = 0;
+        let scoreCorrect = 0;
+        let scoreWrong = 0;
+        
+        let targetWords = []; 
+        let currentAnswer = []; 
+        let totalBlocksCount = 0;
+        let availableBlocks = []; // Массив для отслеживания нижних блоков
+
+        function startTheme(themeKey) {
+            if (!db[themeKey] || db[themeKey].length === 0) {
+                alert('В этой теме пока нет предложений в файле content.js!');
+                return;
+            }
+            currentTheme = themeKey;
+            
+            currentIndex = parseInt(localStorage.getItem(`eng_index_${currentTheme}`)) || 0;
+            scoreCorrect = parseInt(localStorage.getItem(`eng_correct_${currentTheme}`)) || 0;
+            scoreWrong = parseInt(localStorage.getItem(`eng_wrong_${currentTheme}`)) || 0;
+
+            if (currentIndex >= db[currentTheme].length) {
+                currentIndex = 0;
+                scoreCorrect = 0;
+                scoreWrong = 0;
+            }
+            
+            document.getElementById('count-correct').innerText = scoreCorrect;
+            document.getElementById('count-wrong').innerText = scoreWrong;
+            
+            // СТРОЧКА ИЗМЕНЕНИЯ: Прячем блок заголовков при переходе на экран игры
+            document.getElementById('header-block').classList.add('hidden');
+            
+            document.getElementById('menu-screen').classList.add('hidden');
+            document.getElementById('app-screen').classList.remove('hidden');
+            
+            loadRound();
+        }
+
+        function backToMenu() {
+            document.getElementById('app-screen').classList.add('hidden');
+            document.getElementById('menu-screen').classList.remove('hidden');
+            
+            // СТРОЧКА ИЗМЕНЕНИЯ: Показываем заголовки снова, когда папа возвращается в меню
+            document.getElementById('header-block').classList.remove('hidden');
+            
+            window.speechSynthesis.cancel();
+        }
+
+
+        function loadRound() {
+            const item = db[currentTheme][currentIndex];
+            
+            const calculatedLevel = Math.floor(currentIndex / 50) + 1;
+            document.getElementById('level-badge').innerText = `Уровень ${calculatedLevel}`;
+            document.getElementById('progress-text').innerText = `${currentIndex + 1} / ${db[currentTheme].length}`;
+            
+            document.getElementById('russian-text').innerText = item.translation;
+            
+            document.getElementById('result-message').classList.add('hidden');
+            document.getElementById('next-btn').classList.add('hidden');
+            document.getElementById('audio-repeat-btn').classList.add('hidden');
+            document.getElementById('action-btn').classList.remove('hidden');
+            document.getElementById('utility-btns').classList.remove('hidden');
+            
+            document.getElementById('answer-zone').innerHTML = '';
+            currentAnswer = [];
+
+            targetWords = item.text.replace(/[.,\/#!$%\^&\*;:{}=\-_`~?]/g,"").split(/\s+/);
+            
+            let allBlocks = [...targetWords];
+            let addedFakesCount = 0;
+            
+            const pool = globalFakeWordsPool.sort(() => Math.random() - 0.5);
+            for(let i = 0; i < pool.length; i++) {
+                if(!targetWords.map(w => w.toLowerCase()).includes(pool[i].toLowerCase())) {
+                    allBlocks.push(pool[i]);
+                    addedFakesCount++;
+                }
+                if(addedFakesCount >= 2) break; 
+            }
+
+            totalBlocksCount = allBlocks.length;
+            let shuffledWords = allBlocks.sort(() => Math.random() - 0.5);
+            
+            // Запоминаем структуру нижних блоков
+            availableBlocks = shuffledWords.map((word, index) => ({
+                id: `word-origin-${index}`,
+                text: word,
+                visible: true
+            }));
+
+            renderWordsZone();
+        }
+
+        // Отрисовка нижнего поля блоков
+        function renderWordsZone() {
+            const wordsZone = document.getElementById('words-zone');
+            wordsZone.innerHTML = '';
+            
+            availableBlocks.forEach(blockData => {
+                const block = document.createElement('div');
+                block.className = 'word-block';
+                block.innerText = blockData.text;
+                block.id = blockData.id;
+                block.draggable = true; // Разрешаем перетаскивание
+                
+                if (!blockData.visible) {
+                    block.style.visibility = 'hidden';
+                }
+
+                // События мыши (клик)
+                block.onclick = () => moveToAnswer(blockData.text, blockData.id);
+                
+                // События Drag and Drop
+                block.ondragstart = (e) => dragStart(e, blockData.id, 'from-bottom');
+                block.ondragend = dragEnd;
+
+                wordsZone.appendChild(block);
+            });
+        }
+
+        // Перемещение слова в ответ по клику или дропу
+        function moveToAnswer(word, blockId, insertIndex = null) {
+            const blockData = availableBlocks.find(b => b.id === blockId);
+            if (!blockData || !blockData.visible) return;
+
+            blockData.visible = false; // Прячем внизу
+            
+            const newItem = { text: word, originId: blockId };
+            
+            if (insertIndex !== null) {
+                currentAnswer.splice(insertIndex, 0, newItem); // Вставляем в точное место при перетаскивании
+            } else {
+                currentAnswer.push(newItem); // Или просто в конец при клике
+            }
+
+            renderWordsZone();
+            renderAnswerZone();
+        }
+
+        // Отрисовка верхней зоны ответа
+        function renderAnswerZone() {
+            const zone = document.getElementById('answer-zone');
+            zone.innerHTML = '';
+            
+            currentAnswer.forEach((item, index) => {
+                const block = document.createElement('div');
+                block.className = 'word-block';
+                block.style.borderColor = '#6c757d';
+                block.innerText = item.text;
+                block.id = `answer-item-${index}`;
+                block.draggable = true;
+
+                // Клик возвращает обратно вниз
+                block.onclick = () => removeFromAnswer(index);
+                
+                // Перетаскивание внутри верхней зоны, чтобы менять слова местами
+                block.ondragstart = (e) => dragStart(e, index, 'from-top');
+                block.ondragend = dragEnd;
+                block.ondragover = (e) => allowDrop(e);
+                block.ondrop = (e) => dropSortAnswer(e, index);
+
+                zone.appendChild(block);
+            });
+        }
+
+        function removeFromAnswer(index) {
+            const removed = currentAnswer.splice(index, 1)[0];
+            const blockData = availableBlocks.find(b => b.id === removed.originId);
+            if (blockData) blockData.visible = true; // Возвращаем видимость внизу
+            
+            renderWordsZone();
+            renderAnswerZone();
+        }
+
+        // === СИСТЕМА DRAG AND DROP (ПЕРЕТАСКИВАНИЕ) ===
+        function dragStart(e, idOrIndex, source) {
+            e.target.classList.add('dragging');
+            e.dataTransfer.setData('text/plain', idOrIndex);
+            e.dataTransfer.setData('source', source);
+        }
+
+        function dragEnd(e) {
+            e.target.classList.remove('dragging');
+            document.getElementById('answer-zone').classList.remove('drag-over');
+        }
+
+        function allowDrop(e) {
+            e.preventDefault();
+        }
+
+        function dragEnter(e) {
+            document.getElementById('answer-zone').classList.add('drag-over');
+        }
+
+        function dragLeave(e) {
+            if (e.target.id === 'answer-zone') {
+                document.getElementById('answer-zone').classList.remove('drag-over');
+            }
+        }
+
+        // Бросок снизу вверх (в общую зону ответа)
+        function dropToAnswer(e) {
+            e.preventDefault();
+            const source = e.dataTransfer.getData('source');
+            const blockId = e.dataTransfer.getData('text/plain');
+            
+            if (source === 'from-bottom') {
+                const blockData = availableBlocks.find(b => b.id === blockId);
+                if (blockData && blockData.visible) {
+                    moveToAnswer(blockData.text, blockId);
+                }
+            }
+        }
+
+        // Бросок на конкретное слово внутри зоны ответа (сортировка местами)
+        function dropSortAnswer(e, targetIndex) {
+            e.preventDefault();
+            e.stopPropagation(); 
+            
+            const source = e.dataTransfer.getData('source');
+            const data = e.dataTransfer.getData('text/plain');
+
+            if (source === 'from-top') {
+                const sourceIndex = parseInt(data);
+                const draggedItem = currentAnswer.splice(sourceIndex, 1)[0];
+                currentAnswer.splice(targetIndex, 0, draggedItem);
+                renderAnswerZone();
+            } else if (source === 'from-bottom') {
+                const blockData = availableBlocks.find(b => b.id === data);
+                if (blockData && blockData.visible) {
+                    moveToAnswer(blockData.text, data, targetIndex);
+                }
+            }
+            document.getElementById('answer-zone').classList.remove('drag-over');
+        }
+
+        // === ОСТАЛЬНАЯ ЛОГИКА ИГРЫ ===
+        function resetCurrentAnswer() {
+            availableBlocks.forEach(b => b.visible = true);
+            currentAnswer = [];
+            renderWordsZone();
+            renderAnswerZone();
+        }
+
+        function giveHint() {
+            const nextCorrectIndex = currentAnswer.length;
+            if (nextCorrectIndex >= targetWords.length) return;
+            
+            const neededWord = targetWords[nextCorrectIndex].toLowerCase();
+            const foundBlock = availableBlocks.find(b => b.visible && b.text.toLowerCase() === neededWord);
+            
+            if (foundBlock) {
+                moveToAnswer(foundBlock.text, foundBlock.id);
+            }
+        }
+
+        function checkAnswer() {
+            const item = db[currentTheme][currentIndex];
+            const resultBox = document.getElementById('result-message');
+            
+            const userString = currentAnswer.map(w => w.text.toLowerCase()).join(' ');
+            const targetString = targetWords.map(w => w.toLowerCase()).join(' ');
+
+            resultBox.classList.remove('hidden');
+            document.getElementById('action-btn').classList.add('hidden');
+            document.getElementById('utility-btns').classList.add('hidden');
+            document.getElementById('next-btn').classList.remove('hidden');
+            document.getElementById('audio-repeat-btn').classList.remove('hidden');
+
+            if (userString === targetString) {
+                scoreCorrect++;
+                document.getElementById('count-correct').innerText = scoreCorrect;
+                resultBox.className = "result-box result-success";
+                resultBox.innerHTML = "🎉 Великолепно! Всё правильно!";
+                playSystemSound(true);
+            } else {
+                scoreWrong++;
+                document.getElementById('count-wrong').innerText = scoreWrong;
+                resultBox.className = "result-box result-danger";
+                resultBox.innerHTML = `Ошибка! <br><span style="font-size:15px; font-weight:normal;">Правильный ответ:</span><br> <strong style="font-size:20px;">${item.text}</strong>`;
+                playSystemSound(false);
+            }
+
+            localStorage.setItem(`eng_correct_${currentTheme}`, scoreCorrect);
+            localStorage.setItem(`eng_wrong_${currentTheme}`, scoreWrong);
+
+            speakSentence(item.text);
+        }
+
+        function nextSentence() {
+            if (currentIndex < db[currentTheme].length - 1) {
+                currentIndex++;
+                localStorage.setItem(`eng_index_${currentTheme}`, currentIndex);
+                loadRound();
+            } else {
+                alert('Поздравляем! Тема полностью пройдена!');
+                localStorage.removeItem(`eng_index_${currentTheme}`);
+                backToMenu();
+            }
+        }
+
+        function repeatAudio() {
+            const item = db[currentTheme][currentIndex];
+            speakSentence(item.text);
+        }
+
+        function speakSentence(text) {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'en-US';
+            utterance.rate = 0.85; 
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function playSystemSound(isSuccess) {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                if (isSuccess) {
+                    osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+                    osc.frequency.setValueAtTime(880, ctx.currentTime + 0.1);
+                } else {
+                    osc.frequency.setValueAtTime(220, ctx.currentTime);
+                }
+                gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.3);
+            } catch(e) {}
+        }
+
+        function clearAllProgress() {
+            if(confirm("Вы уверены, что хотите сбросить весь сохраненный прогресс и обнулить счетчики?")) {
+                localStorage.clear();
+                alert("Все сохранения удалены!");
+                location.reload();
+            }
+        }
+    </script>
+</body>
+</html>
